@@ -1,11 +1,13 @@
 {
   "name": "threejs-journey-exercise",
+  "homepage": "https://Tilan80.github.io/DiplomaShaders",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build"
+    "build": "vite build",
+    "deploy": "gh-pages -d dist"
   },
   "devDependencies": {
     "vite": "^5.3.3",
