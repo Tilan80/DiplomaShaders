@@ -1,4 +1,4 @@
-# Three.js Journey
+# Shaders showcase Diploma2025
 
 ## Setup
 Download [Node.js](https://nodejs.org/en/download/).
