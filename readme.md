@@ -1,5 +1,8 @@
 # Shaders showcase Diploma2025
 
+## Live site
+https://shaders-showcase-six.vercel.app
+
 ## Setup
 Download [Node.js](https://nodejs.org/en/download/).
 Run this followed commands:
