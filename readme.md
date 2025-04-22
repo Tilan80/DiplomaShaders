@@ -1,4 +1,6 @@
 # Shaders showcase Diploma2025
+Influenced and taken from Bruno Simon's course ThreejsJourney.
+
 
 ## Live site
 https://shaders-showcase-six.vercel.app
