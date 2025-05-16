@@ -34,8 +34,9 @@ export default class Procedural {
 
         // Debug
         this.debugObject = {}
+        this.debugObject.colorWater = '#66a8ff'
         this.debugObject.colorWaterDeep = '#002b3d'
-        this.debugObject.colorWaterSurface = '#66a8ff'
+        this.debugObject.colorWaterSurface = '#eee581'
         this.debugObject.colorSand = '#ffe894'
         this.debugObject.colorGrass = '#85d534'
         this.debugObject.colorSnow = '#ffffff'
@@ -179,17 +180,91 @@ export default class Procedural {
 
     setWater() {
         // Water geometry and material
-        this.waterGeometry = new THREE.PlaneGeometry(10, 10, 1, 1)
-        this.waterMaterial = new THREE.MeshPhysicalMaterial({
-            transmission: 1,
-            roughness: 0.3,
-        })
+        this.waterGeometry = new THREE.PlaneGeometry(20, 20, 100, 100);
+        this.waterGeometry.rotateX(-Math.PI * 0.5);
+
+        // Water uniforms
+        this.waterUniforms = {
+            uTime: { value: 0 },
+            uWaveSpeed: { value: 1.0 },
+            uWaveHeight: { value: 0.01 },
+            uWaveFrequency: { value: 2.0 },
+            uWaterColor: { value: new THREE.Color(this.debugObject.colorWater) },
+            uWaterOpacity: { value: 0.7 }
+        };
+
+        // Create water material with custom shader
+        this.waterMaterial = new THREE.ShaderMaterial({
+            vertexShader: `
+                uniform float uTime;
+                uniform float uWaveSpeed;
+                uniform float uWaveHeight;
+                uniform float uWaveFrequency;
+
+                varying vec2 vUv;
+                varying vec3 vPosition;
+                varying vec3 vNormal;
+                varying float vWaveHeight;
+
+                void main() {
+                    vUv = uv;
+                    
+                    // Create wave effect
+                    vec3 pos = position;
+                    float waveX = sin(pos.x * uWaveFrequency + uTime * uWaveSpeed) * uWaveHeight;
+                    float waveZ = sin(pos.z * uWaveFrequency + uTime * uWaveSpeed) * uWaveHeight;
+                    pos.y += waveX + waveZ;
+                    
+                    // Pass wave height to fragment shader for coloring
+                    vWaveHeight = waveX + waveZ;
+                    
+                    // Calculate normal for lighting
+                    vec3 tangent = normalize(vec3(1.0, cos(pos.x * uWaveFrequency + uTime * uWaveSpeed) * uWaveHeight * uWaveFrequency, 0.0));
+                    vec3 bitangent = normalize(vec3(0.0, cos(pos.z * uWaveFrequency + uTime * uWaveSpeed) * uWaveHeight * uWaveFrequency, 1.0));
+                    vNormal = normalize(cross(tangent, bitangent));
+                    
+                    vPosition = pos;
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+                }
+            `,
+            fragmentShader: `
+                uniform vec3 uWaterColor;
+                uniform float uWaterOpacity;
+                uniform float uTime;
+
+                varying vec2 vUv;
+                varying float vWaveHeight;
+
+                void main() {
+                    // Base water color from uniform
+                    vec3 waterColor = uWaterColor;
+                    
+                    // Adjust brightness based on wave height
+                    // Normalize the wave height to a range of -1 to 1
+                    float normalizedHeight = vWaveHeight / 0.01; // Assuming max wave height is around 0.1
+                    
+                    // Make higher waves brighter, lower waves darker
+                    waterColor = waterColor * (1.0 + normalizedHeight * 0.3);
+                    
+                    // Add very subtle ripple effect
+                    float ripple = sin(vUv.x * 15.0 + uTime) * sin(vUv.y * 15.0 + uTime) * 0.02;
+                    waterColor -= vec3(ripple);
+                    
+                    // Simple transparency
+                    float opacity = uWaterOpacity;
+                    
+                    gl_FragColor = vec4(waterColor, opacity);
+                }
+            `,
+            uniforms: this.waterUniforms,
+            transparent: true,
+            side: THREE.DoubleSide
+        });
 
         // Create water mesh
-        this.water = new THREE.Mesh(this.waterGeometry, this.waterMaterial)
-        this.water.rotation.x = -Math.PI * 0.5
-        this.water.position.y = -0.1
-        this.scene.add(this.water)
+        this.water = new THREE.Mesh(this.waterGeometry, this.waterMaterial);
+        this.water.position.y = -0.1;
+        this.scene.add(this.water);
     }
 
     setDebug() {
@@ -248,6 +323,19 @@ export default class Procedural {
         this.debugFolder.add(this.debugObject, 'fogDensity', 0, 0.1, 0.001)
             .onChange(() => this.uniforms.uFogDensity.value = this.debugObject.fogDensity)
             .name('fog density')
+        
+        // Water debug controls
+        this.waterFolder = this.debugFolder.addFolder('Water');
+        this.waterFolder.add(this.waterUniforms.uWaveHeight, 'value', 0, 0.2, 0.01).name('Wave Height');
+        this.waterFolder.add(this.waterUniforms.uWaveSpeed, 'value', 0, 5, 0.1).name('Wave Speed');
+        this.waterFolder.add(this.waterUniforms.uWaveFrequency, 'value', 0, 5, 0.1).name('Wave Frequency');
+        this.waterFolder.add(this.waterUniforms.uWaterOpacity, 'value', 0, 1, 0.01).name('Opacity');
+        this.waterFolder.addColor(this.debugObject, 'colorWater')
+            .onChange(() => {
+                this.waterUniforms.uWaterColor.value.set(this.debugObject.colorWater);
+            })
+            .name('Water Color');
+
     }
 
     update() {
@@ -270,6 +358,7 @@ export default class Procedural {
 
         // Also update time for animation
         this.uniforms.uTime.value = this.time.elapsed * 0.001
+        this.waterUniforms.uTime.value = this.time.elapsed * 0.001;
     }
 
     destroy() {
