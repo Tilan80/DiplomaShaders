@@ -1,4 +1,3 @@
-
 import * as THREE from 'three'
 import Experience from '../../Experience.js'
 
@@ -16,6 +15,23 @@ export default class Procedural {
 
         this.time = this.experience.time
 
+        // Movement controls
+        this.movement = {
+            forward: false,
+            backward: false,
+            left: false,
+            right: false,
+            speed: 0.05
+        }
+
+        // Terrain position
+        this.terrainPosition = {
+            x: 0,
+            z: 0
+        }
+
+        this.terrainAnimationEnabled = false;
+
         // Debug
         this.debugObject = {}
         this.debugObject.colorWaterDeep = '#002b3d'
@@ -24,11 +40,79 @@ export default class Procedural {
         this.debugObject.colorGrass = '#85d534'
         this.debugObject.colorSnow = '#ffffff'
         this.debugObject.colorRock = '#bfbd8d'
+        this.debugObject.fogColor = '#e8f0ff'
+        this.debugObject.fogNear = 5.0
+        this.debugObject.fogFar = 15.0
+        this.debugObject.fogDensity = 0.03
 
         // Setup
         this.setTerrain()
         this.setWater()
         this.setDebug()
+        this.setupKeyboardControls()
+        this.createInstructionElement()
+    }
+
+    createInstructionElement() {
+        // Create instruction element
+        this.instructionElement = document.createElement('div')
+        this.instructionElement.textContent = 'Use WASD to move'
+
+        // Style the element
+        Object.assign(this.instructionElement.style, {
+            position: 'absolute',
+            top: '20px',
+            left: '20px',
+            color: 'white',
+            fontFamily: 'Arial, sans-serif',
+            fontSize: '16px',
+            fontWeight: 'bold',
+            padding: '10px',
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            borderRadius: '5px',
+            zIndex: '1000',
+            pointerEvents: 'none' // Make sure it doesn't interfere with mouse events
+        })
+
+        // Add to DOM
+        document.body.appendChild(this.instructionElement)
+    }
+
+    setupKeyboardControls() {
+        // Add event listeners for keydown and keyup
+        window.addEventListener('keydown', (event) => {
+            switch (event.key.toLowerCase()) {
+                case 'w':
+                    this.movement.forward = true
+                    break
+                case 's':
+                    this.movement.backward = true
+                    break
+                case 'a':
+                    this.movement.left = true
+                    break
+                case 'd':
+                    this.movement.right = true
+                    break
+            }
+        })
+
+        window.addEventListener('keyup', (event) => {
+            switch (event.key.toLowerCase()) {
+                case 'w':
+                    this.movement.forward = false
+                    break
+                case 's':
+                    this.movement.backward = false
+                    break
+                case 'a':
+                    this.movement.left = false
+                    break
+                case 'd':
+                    this.movement.right = false
+                    break
+            }
+        })
     }
 
     setTerrain() {
@@ -41,6 +125,7 @@ export default class Procedural {
         // Material uniforms
         this.uniforms = {
             uTime: { value: 0 },
+            uTerrainAnimationTime: { value: 0 },
             uPositionFrequency: { value: 0.2 },
             uStrength: { value: 2.0 },
             uWarpFrequency: { value: 5 },
@@ -51,6 +136,11 @@ export default class Procedural {
             uColorGrass: { value: new THREE.Color(this.debugObject.colorGrass) },
             uColorSnow: { value: new THREE.Color(this.debugObject.colorSnow) },
             uColorRock: { value: new THREE.Color(this.debugObject.colorRock) },
+            uTerrainPosition: { value: new THREE.Vector2(0, 0) },
+            uFogColor: { value: new THREE.Color(this.debugObject.fogColor) },
+            uFogNear: { value: this.debugObject.fogNear },
+            uFogFar: { value: this.debugObject.fogFar },
+            uFogDensity: { value: this.debugObject.fogDensity }
         }
 
         // Material
@@ -121,6 +211,10 @@ export default class Procedural {
             .min(0).max(1).step(0.0001)
             .name('warp strength')
 
+        this.debugFolder.add(this.movement, 'speed')
+            .min(0.01).max(0.2).step(0.01)
+            .name('movement speed')
+
         this.debugFolder.addColor(this.debugObject, 'colorWaterDeep')
             .onChange(() => this.uniforms.uColorWaterDeep.value.set(this.debugObject.colorWaterDeep))
 
@@ -139,16 +233,55 @@ export default class Procedural {
         this.debugFolder.addColor(this.debugObject, 'colorRock')
             .onChange(() => this.uniforms.uColorRock.value.set(this.debugObject.colorRock))
 
+        this.debugFolder.addColor(this.debugObject, 'fogColor')
+            .onChange(() => this.uniforms.uFogColor.value.set(this.debugObject.fogColor))
+            .name('fog color')
+
+        this.debugFolder.add(this.debugObject, 'fogNear', 0, 10, 0.1)
+            .onChange(() => this.uniforms.uFogNear.value = this.debugObject.fogNear)
+            .name('fog near')
+
+        this.debugFolder.add(this.debugObject, 'fogFar', 5, 30, 0.1)
+            .onChange(() => this.uniforms.uFogFar.value = this.debugObject.fogFar)
+            .name('fog far')
+
+        this.debugFolder.add(this.debugObject, 'fogDensity', 0, 0.1, 0.001)
+            .onChange(() => this.uniforms.uFogDensity.value = this.debugObject.fogDensity)
+            .name('fog density')
     }
 
     update() {
-        // Update uniforms with time
-        if (this.uniforms) {
-            this.uniforms.uTime.value = this.time.elapsed * 0.001
+        // Update terrain position based on keyboard input
+        if (this.movement.forward) {
+            this.terrainPosition.z += this.movement.speed
         }
+        if (this.movement.backward) {
+            this.terrainPosition.z -= this.movement.speed
+        }
+        if (this.movement.left) {
+            this.terrainPosition.x += this.movement.speed
+        }
+        if (this.movement.right) {
+            this.terrainPosition.x -= this.movement.speed
+        }
+
+        // Make sure this line is executing
+        this.uniforms.uTerrainPosition.value.set(this.terrainPosition.x, this.terrainPosition.z)
+
+        // Also update time for animation
+        this.uniforms.uTime.value = this.time.elapsed * 0.001
     }
 
     destroy() {
+        // Remove event listeners
+        window.removeEventListener('keydown', this.onKeyDown)
+        window.removeEventListener('keyup', this.onKeyUp)
+
+        // Remove instruction element
+        if (this.instructionElement && this.instructionElement.parentNode) {
+            this.instructionElement.parentNode.removeChild(this.instructionElement)
+        }
+
         // Remove meshes from scene
         this.scene.remove(this.terrain)
         this.scene.remove(this.water)
@@ -165,5 +298,4 @@ export default class Procedural {
         // Dispose debug folder
         this.debugFolder.destroy()
     }
-
 }

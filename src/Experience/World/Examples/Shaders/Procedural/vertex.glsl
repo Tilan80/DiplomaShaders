@@ -1,20 +1,23 @@
-
 uniform float uTime;
+uniform float uTerrainAnimationTime; // New uniform for terrain animation
 uniform float uPositionFrequency;
 uniform float uStrength;
 uniform float uWarpFrequency;
 uniform float uWarpStrength;
+uniform vec2 uTerrainPosition;
 
 varying vec3 vPosition;
 varying float vUpDot;
 
-
 #include ../includes/simplexNoise2d.glsl
 
 float getElevation(vec2 pos) {
-
-    vec2 warpedPosition = pos;
-    warpedPosition += uTime * 0.2;
+    // Apply terrain position offset to the input position
+    vec2 offsetPos = pos + uTerrainPosition;
+    
+    vec2 warpedPosition = offsetPos;
+    // Use the terrain animation time instead of regular time
+    warpedPosition += uTerrainAnimationTime * 0.2;
     warpedPosition += simplexNoise2d(warpedPosition * uPositionFrequency * uWarpFrequency) 
                     * uWarpStrength;
 
@@ -27,7 +30,6 @@ float getElevation(vec2 pos) {
     elevation = pow(abs(elevation), 2.0) * elevationSign;
     elevation *= uStrength;
 
-
     return elevation;
 }
 
@@ -37,7 +39,7 @@ void main() {
     vec3 positionA = position.xyz + vec3(shift, 0.0, 0.0);
     vec3 positionB = position.xyz + vec3(0.0, 0.0, - shift);
 
-    // Eleevation
+    // Elevation
     float elevation = getElevation(csm_Position.xz);
     csm_Position.y += elevation;
     positionA.y = getElevation(positionA.xz);
@@ -50,7 +52,5 @@ void main() {
 
     // Varyings
     vPosition = csm_Position;
-    vPosition.xz += uTime * 0.2;
-
     vUpDot = dot(csm_Normal, vec3(0.0, 1.0, 0.0));
 }

@@ -14,6 +14,7 @@ export default class World {
         this.scene = this.experience.scene
         this.resources = this.experience.resources
         this.debug = this.experience.debug
+        this.camera = this.experience.camera
 
         /**
          * Debug folder
@@ -26,6 +27,8 @@ export default class World {
             this.Morphing = null
             this.HalfTone = null
             this.Procedural = new Procedural()
+            this.camera.instance.position.set(0, 1, -12)
+            this.camera.instance.lookAt(0, 2, 0)
         }
 
         const change1 = () => {
@@ -48,9 +51,9 @@ export default class World {
             change2: change2,
         }
 
-        this.debugFolder.add(this.bug, 'change0')
-        this.debugFolder.add(this.bug, 'change1')
-        this.debugFolder.add(this.bug, 'change2')
+        this.debugFolder.add(this.bug, 'change0').name('Procedural world')
+        this.debugFolder.add(this.bug, 'change1').name('HalfTone shading')
+        this.debugFolder.add(this.bug, 'change2').name('Morphing')
 
 
         /**

@@ -25,6 +25,8 @@ export default class HalfTone {
         this.materialParameters.color = '#ff794d'
         this.materialParameters.shadowColor = '#8e19b8'
         this.materialParameters.lightColor = '#e5ffe0'
+        this.materialParameters.rimColor = '#80ffff';
+        this.materialParameters.patternType = 0; // Default to circle pattern
 
         this.material = new THREE.ShaderMaterial({
             vertexShader: HalfToneVertexShader,
@@ -37,8 +39,15 @@ export default class HalfTone {
                 uShadowColor: new THREE.Uniform(new THREE.Color(this.materialParameters.shadowColor)),
                 uLightRepetitions: new THREE.Uniform(100),
                 uLightColor: new THREE.Uniform(new THREE.Color(this.materialParameters.lightColor)),
+                // New uniforms
+                uRimStrength: new THREE.Uniform(0.2),
+                uRimColor: new THREE.Uniform(new THREE.Color(this.materialParameters.rimColor)),
+                uSpecularPower: new THREE.Uniform(100.0),
+                uSpecularColor: new THREE.Uniform(new THREE.Color('#ffffff')),
+                uPatternType: new THREE.Uniform(this.materialParameters.patternType),
             }
         })
+
 
         // object
         this.torusKnot = new THREE.Mesh(
@@ -66,19 +75,13 @@ export default class HalfTone {
             })
 
         this.debugFolder
-            .add(this.material.uniforms.uShadowRepetitions, 'value')
-            .min(1)
-            .max(300)
-            .step(1)
-
-        this.debugFolder
             .addColor(this.materialParameters, 'shadowColor')
             .onChange(() => {
                 this.material.uniforms.uShadowColor.value.set(this.materialParameters.shadowColor)
             })
 
         this.debugFolder
-            .add(this.material.uniforms.uLightRepetitions, 'value')
+            .add(this.material.uniforms.uShadowRepetitions, 'value')
             .min(1)
             .max(300)
             .step(1)
@@ -88,6 +91,40 @@ export default class HalfTone {
             .onChange(() => {
                 this.material.uniforms.uLightColor.value.set(this.materialParameters.lightColor)
             })
+
+        this.debugFolder
+            .add(this.material.uniforms.uLightRepetitions, 'value')
+            .min(1)
+            .max(300)
+            .step(1)
+
+        this.debugFolder
+            .addColor(this.materialParameters, 'rimColor')
+            .onChange(() => {
+                this.material.uniforms.uRimColor.value.set(this.materialParameters.rimColor)
+            })
+            .name('Rim Color')
+        
+        this.debugFolder
+            .add(this.material.uniforms.uRimStrength, 'value')
+            .min(0).max(1).step(0.01)
+            .name('Rim Strength')
+        
+        this.debugFolder
+            .add(this.material.uniforms.uSpecularPower, 'value')
+            .min(1).max(128).step(1)
+            .name('Specular Power')
+
+        // Add pattern type selector
+        this.debugFolder
+            .add(this.material.uniforms.uPatternType, 'value', {
+                'Circle': 0,
+                'Diamond': 1,
+                'Line': 2,
+                'Flower': 3,
+                'Cross': 4
+            })
+            .name('Pattern Type')
 
     }
 
