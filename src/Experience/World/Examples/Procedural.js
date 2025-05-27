@@ -24,6 +24,11 @@ export default class Procedural {
             speed: 0.05
         }
 
+        this.handleKeyDown = this.handleKeyDown.bind(this)
+        this.handleKeyUp = this.handleKeyUp.bind(this)
+        window.addEventListener('keydown', this.handleKeyDown)
+        window.addEventListener('keyup', this.handleKeyUp)
+
         // Terrain position
         this.terrainPosition = {
             x: 0,
@@ -50,7 +55,6 @@ export default class Procedural {
         this.setTerrain()
         this.setWater()
         this.setDebug()
-        this.setupKeyboardControls()
         this.createInstructionElement()
     }
 
@@ -79,41 +83,23 @@ export default class Procedural {
         document.body.appendChild(this.instructionElement)
     }
 
-    setupKeyboardControls() {
-        // Add event listeners for keydown and keyup
-        window.addEventListener('keydown', (event) => {
-            switch (event.key.toLowerCase()) {
-                case 'w':
-                    this.movement.forward = true
-                    break
-                case 's':
-                    this.movement.backward = true
-                    break
-                case 'a':
-                    this.movement.left = true
-                    break
-                case 'd':
-                    this.movement.right = true
-                    break
-            }
-        })
 
-        window.addEventListener('keyup', (event) => {
-            switch (event.key.toLowerCase()) {
-                case 'w':
-                    this.movement.forward = false
-                    break
-                case 's':
-                    this.movement.backward = false
-                    break
-                case 'a':
-                    this.movement.left = false
-                    break
-                case 'd':
-                    this.movement.right = false
-                    break
-            }
-        })
+    handleKeyDown(event) {
+        switch (event.key.toLowerCase()) {
+            case 'w': this.movement.forward = true; break
+            case 's': this.movement.backward = true; break
+            case 'a': this.movement.left = true; break
+            case 'd': this.movement.right = true; break
+        }
+    }
+
+    handleKeyUp(event) {
+        switch (event.key.toLowerCase()) {
+            case 'w': this.movement.forward = false; break
+            case 's': this.movement.backward = false; break
+            case 'a': this.movement.left = false; break
+            case 'd': this.movement.right = false; break
+        }
     }
 
     setTerrain() {
@@ -270,60 +256,66 @@ export default class Procedural {
     setDebug() {
         this.debugFolder = this.debug.ui.addFolder('Terrain')
 
-        this.debugFolder.add(this.uniforms.uPositionFrequency, 'value')
+        this.terrainControls = this.debugFolder.addFolder('Terrain Controls')
+
+        this.terrainControls.add(this.uniforms.uPositionFrequency, 'value')
             .min(0).max(1).step(0.001)
             .name('position frequency')
 
-        this.debugFolder.add(this.uniforms.uStrength, 'value')
+        this.terrainControls.add(this.uniforms.uStrength, 'value')
             .min(0).max(10).step(0.001)
             .name('strength')
 
-        this.debugFolder.add(this.uniforms.uWarpFrequency, 'value')
+        this.terrainControls.add(this.uniforms.uWarpFrequency, 'value')
             .min(0).max(100).step(0.001)
             .name('warp frequency')
 
-        this.debugFolder.add(this.uniforms.uWarpStrength, 'value')
+        this.terrainControls.add(this.uniforms.uWarpStrength, 'value')
             .min(0).max(1).step(0.0001)
             .name('warp strength')
 
-        this.debugFolder.add(this.movement, 'speed')
+        this.terrainControls.add(this.movement, 'speed')
             .min(0.01).max(0.2).step(0.01)
             .name('movement speed')
 
-        this.debugFolder.addColor(this.debugObject, 'colorWaterDeep')
+        // Color controls
+        this.colorFolder = this.debugFolder.addFolder('Color Controls')
+        this.colorFolder.addColor(this.debugObject, 'colorWaterDeep')
             .onChange(() => this.uniforms.uColorWaterDeep.value.set(this.debugObject.colorWaterDeep))
 
-        this.debugFolder.addColor(this.debugObject, 'colorWaterSurface')
+        this.colorFolder.addColor(this.debugObject, 'colorWaterSurface')
             .onChange(() => this.uniforms.uColorWaterSurface.value.set(this.debugObject.colorWaterSurface))
 
-        this.debugFolder.addColor(this.debugObject, 'colorSand')
+        this.colorFolder.addColor(this.debugObject, 'colorSand')
             .onChange(() => this.uniforms.uColorSand.value.set(this.debugObject.colorSand))
 
-        this.debugFolder.addColor(this.debugObject, 'colorGrass')
+        this.colorFolder.addColor(this.debugObject, 'colorGrass')
             .onChange(() => this.uniforms.uColorGrass.value.set(this.debugObject.colorGrass))
 
-        this.debugFolder.addColor(this.debugObject, 'colorSnow')
+        this.colorFolder.addColor(this.debugObject, 'colorSnow')
             .onChange(() => this.uniforms.uColorSnow.value.set(this.debugObject.colorSnow))
 
-        this.debugFolder.addColor(this.debugObject, 'colorRock')
+        this.colorFolder.addColor(this.debugObject, 'colorRock')
             .onChange(() => this.uniforms.uColorRock.value.set(this.debugObject.colorRock))
 
-        this.debugFolder.addColor(this.debugObject, 'fogColor')
+        this.colorFolder.addColor(this.debugObject, 'fogColor')
             .onChange(() => this.uniforms.uFogColor.value.set(this.debugObject.fogColor))
             .name('fog color')
 
-        this.debugFolder.add(this.debugObject, 'fogNear', 0, 10, 0.1)
+        // Fog controls
+        this.fogFolder = this.debugFolder.addFolder('Fog Controls')
+        this.fogFolder.add(this.debugObject, 'fogNear', 0, 10, 0.1)
             .onChange(() => this.uniforms.uFogNear.value = this.debugObject.fogNear)
             .name('fog near')
 
-        this.debugFolder.add(this.debugObject, 'fogFar', 5, 30, 0.1)
+        this.fogFolder.add(this.debugObject, 'fogFar', 5, 30, 0.1)
             .onChange(() => this.uniforms.uFogFar.value = this.debugObject.fogFar)
             .name('fog far')
 
-        this.debugFolder.add(this.debugObject, 'fogDensity', 0, 0.1, 0.001)
+        this.fogFolder.add(this.debugObject, 'fogDensity', 0, 0.1, 0.001)
             .onChange(() => this.uniforms.uFogDensity.value = this.debugObject.fogDensity)
             .name('fog density')
-        
+
         // Water debug controls
         this.waterFolder = this.debugFolder.addFolder('Water');
         this.waterFolder.add(this.waterUniforms.uWaveHeight, 'value', 0, 0.2, 0.01).name('Wave Height');
@@ -362,9 +354,8 @@ export default class Procedural {
     }
 
     destroy() {
-        // Remove event listeners
-        window.removeEventListener('keydown', this.onKeyDown)
-        window.removeEventListener('keyup', this.onKeyUp)
+        window.removeEventListener('keydown', this.handleKeyDown)
+        window.removeEventListener('keyup', this.handleKeyUp)
 
         // Remove instruction element
         if (this.instructionElement && this.instructionElement.parentNode) {
@@ -384,7 +375,14 @@ export default class Procedural {
         this.depthMaterial.dispose()
         this.waterMaterial.dispose()
 
-        // Dispose debug folder
-        this.debugFolder.destroy()
+        // Clear any references to large objects
+        this.uniforms = null
+        this.waterUniforms = null
+
+        // Dispose debug folder (waterFolder is automatically destroyed as a child)
+        if (this.debugFolder) {
+            this.debugFolder.destroy()
+        }
     }
+
 }

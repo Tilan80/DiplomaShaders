@@ -10,11 +10,48 @@ uniform float uSpecularPower;
 uniform vec3 uSpecularColor;
 uniform float uPatternType; // 0.0 = circles, 1.0 = diamonds, 2.0 = lines, 3.0 = flower, 4.0 = cross
 
+uniform int uShadingMode;
+uniform int uToonLevels;
+uniform float uOutlineWidth;
+uniform vec3 uOutlineColor;
+
 varying vec3 vNormal;
 varying vec3 vPosition;
+varying vec3 vViewDirection;
 
 #include ../includes/ambientLight.glsl
 #include ../includes/directionalLight.glsl
+
+
+// Cartoon shading function
+vec3 cartoonShading(float NdotL, vec3 baseColor, vec3 shadowColor, vec3 lightColor) {
+    float toonLevels = float(uToonLevels);
+    
+    // Quantize the lighting to discrete levels
+    float toonFactor = floor(NdotL * toonLevels) / (toonLevels - 1.0);
+    
+    if (uToonLevels == 3) {
+        if (toonFactor > 0.66) {
+            return baseColor;
+        } else if (toonFactor > 0.1) {
+            return mix(baseColor, shadowColor, 0.5);
+        } else {
+            return shadowColor;
+        }
+    } else { // 5 tone
+        if (toonFactor > 0.9) {
+            return baseColor;
+        } else if (toonFactor > 0.7) {
+            return mix(shadowColor, baseColor, 0.8);
+        } else if (toonFactor > 0.3) {
+            return mix(shadowColor, baseColor, 0.5);
+        } else if (toonFactor > 0.1) {
+            return mix(shadowColor, baseColor, 0.2);
+        } else {
+            return shadowColor;
+        }
+    }
+}
 
 // Star/flower shape function
 float flowerShape(vec2 uv, float petals, float intensity) {
@@ -97,79 +134,93 @@ vec3 applySpecular(vec3 color, vec3 normal, vec3 lightDir, vec3 viewDir, float p
     return color + spec * specColor;
 }
 
-void main()
-{
-    vec3 viewDirection = normalize(vPosition - cameraPosition);
-    vec3 normal = normalize(vNormal);
-    vec3 color = uColor;
+void main() {
+    if (uShadingMode == 0) {
+        vec3 viewDirection = normalize(vPosition - cameraPosition);
+        vec3 normal = normalize(vNormal);
+        vec3 color = uColor;
 
-    // Light
-    vec3 light = vec3(0.0);
+        // Light
+        vec3 light = vec3(0.0);
 
-    light += ambientLight(
-        vec3(1.0),
-        0.3 // Reduced ambient to make other effects more visible
-    );
+        light += ambientLight(
+            vec3(1.0),
+            0.3 // Reduced ambient to make other effects more visible
+        );
 
-    // Main directional light
-    vec3 mainLightDir = normalize(vec3(1.0, 1.0, 0.0));
-    light += directionalLight(
-        vec3(1.0),
-        0.7,
-        normal,
-        mainLightDir,
-        viewDirection,
-        1.0
-    );
+        // Main directional light
+        vec3 mainLightDir = normalize(vec3(1.0, 1.0, 0.0));
+        light += directionalLight(
+            vec3(1.0),
+            0.7,
+            normal,
+            mainLightDir,
+            viewDirection,
+            1.0
+        );
 
-    // Secondary fill light
-    vec3 fillLightDir = normalize(vec3(-0.5, 0.2, 0.8));
-    light += directionalLight(
-        vec3(0.3, 0.4, 0.5), // Cooler color for fill light
-        0.3,
-        normal,
-        fillLightDir,
-        viewDirection,
-        1.0
-    );
+        // Secondary fill light
+        vec3 fillLightDir = normalize(vec3(-0.5, 0.2, 0.8));
+        light += directionalLight(
+            vec3(0.3, 0.4, 0.5), // Cooler color for fill light
+            0.3,
+            normal,
+            fillLightDir,
+            viewDirection,
+            1.0
+        );
 
-    color *= light;
+        color *= light;
+        
+        // float facingRatio = dot(normal, -viewDirection);
+        // facingRatio = smoothstep(-0.5, 0.5, facingRatio);
+        // color *= facingRatio;
+
+        // Apply single halftone pattern based on selected type
+        color = halftone(
+            color, 
+            uShadowRepetitions, 
+            vec3(0.0, -1.0, 0.0), 
+            -0.8, 
+            1.5, 
+            uShadowColor, 
+            normal,
+            uPatternType
+        );
+        
+        color = halftone(
+            color, 
+            uLightRepetitions, 
+            mainLightDir, 
+            0.5, 
+            1.5, 
+            uLightColor, 
+            normal,
+            uPatternType
+        );
+        
+        // Apply rim lighting
+        color = applyRimLight(color, normal, -viewDirection, uRimStrength, uRimColor);
+        
+        // Apply specular highlights
+        color = applySpecular(color, normal, mainLightDir, -viewDirection, uSpecularPower, uSpecularColor);
+
+        // Final color
+        gl_FragColor = vec4(color, 1.0);
+        #include <tonemapping_fragment>
+        #include <colorspace_fragment>
+    } else {
+        // Cartoon shading mode
+        vec3 normal = normalize(vNormal);
+        vec3 lightDirection = normalize(vec3(1.0, 1.0, 0.5));
+        float NdotL = max(0.0, dot(normal, lightDirection));
+        
+        // Get cartoon shaded color
+        vec3 cartoonColor = cartoonShading(NdotL, uColor, uShadowColor, uLightColor);
+        
+        gl_FragColor = vec4(cartoonColor, 1.0);
+        #include <tonemapping_fragment>
+        #include <colorspace_fragment>
+    }
     
-    // float facingRatio = dot(normal, -viewDirection);
-    // facingRatio = smoothstep(-0.5, 0.5, facingRatio);
-    // color *= facingRatio;
-
-    // Apply single halftone pattern based on selected type
-    color = halftone(
-        color, 
-        uShadowRepetitions, 
-        vec3(0.0, -1.0, 0.0), 
-        -0.8, 
-        1.5, 
-        uShadowColor, 
-        normal,
-        uPatternType
-    );
-    
-    color = halftone(
-        color, 
-        uLightRepetitions, 
-        mainLightDir, 
-        0.5, 
-        1.5, 
-        uLightColor, 
-        normal,
-        uPatternType
-    );
-    
-    // Apply rim lighting
-    color = applyRimLight(color, normal, -viewDirection, uRimStrength, uRimColor);
-    
-    // Apply specular highlights
-    color = applySpecular(color, normal, mainLightDir, -viewDirection, uSpecularPower, uSpecularColor);
-
-    // Final color
-    gl_FragColor = vec4(color, 1.0);
-    #include <tonemapping_fragment>
-    #include <colorspace_fragment>
 }

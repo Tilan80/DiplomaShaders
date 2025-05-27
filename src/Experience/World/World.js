@@ -24,8 +24,6 @@ export default class World {
 
         const change0 = () => {
             this.destroy()
-            this.Morphing = null
-            this.HalfTone = null
             this.Procedural = new Procedural()
             this.camera.instance.position.set(0, 1, -12)
             this.camera.instance.lookAt(0, 2, 0)
@@ -34,15 +32,11 @@ export default class World {
         const change1 = () => {
             this.destroy()
             this.HalfTone = new HalfTone()
-            this.Procedural = null
-            this.Morphing = null
         }
 
         const change2 = () => {
             this.destroy()
             this.Morphing = new Morphing()
-            this.Procedural = null
-            this.HalfTone = null
         }
 
         this.bug = {
@@ -73,12 +67,15 @@ export default class World {
     destroy() {
         if(this.Morphing) {
             this.Morphing.destroy()
+            this.Morphing = null
         }
         if(this.Procedural) {
             this.Procedural.destroy()
+            this.Procedural = null
         }
         if(this.HalfTone) {
             this.HalfTone.destroy()
+            this.HalfTone = null
         }
     }
     
